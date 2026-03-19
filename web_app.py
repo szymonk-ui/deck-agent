@@ -16,7 +16,7 @@ from generate_deck import build_deck
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max upload
 
-PIPEFY_PHASE_ID = os.environ.get("PIPEFY_PHASE_ID", "")
+PIPEFY_PHASE_ID = os.environ.get("PIPEFY_PHASE_ID", "325457354")
 
 # ── HTML Template ─────────────────────────────────────────────────────────────
 
