@@ -147,6 +147,58 @@ def edit_pptx(template_path: Path, output_path: Path, replacements: dict, agenda
 
 # ── Public API ───────────────────────────────────────────────────────────────
 
+def convert_to_png(src_path: str) -> str:
+    """Convert any image to PNG using Pillow. Returns path to a temp PNG file."""
+    from PIL import Image
+    import tempfile
+
+    img = Image.open(src_path).convert("RGBA")
+    # Composite onto white background so transparency renders well in PPTX
+    background = Image.new("RGBA", img.size, (255, 255, 255, 255))
+    background.paste(img, mask=img.split()[3])
+    out = background.convert("RGB")
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    out.save(tmp.name, "PNG")
+    return tmp.name
+
+
+def insert_logo_on_slide1(pptx_path: str, logo_path: str):
+    """
+    Insert the chain logo onto slide 1 (title slide).
+    Logo is placed to the right of the divider, scaled to fit a 3.8"×2.2" box.
+    """
+    from pptx import Presentation
+    from pptx.util import Inches
+    from PIL import Image
+
+    png_path = convert_to_png(logo_path)
+
+    with Image.open(png_path) as img:
+        orig_w, orig_h = img.size
+
+    # Target bounding box: right side of slide, beside the 'X' divider (~11.2")
+    max_w = Inches(3.8)
+    max_h = Inches(2.2)
+
+    scale = min(max_w / orig_w, max_h / orig_h)
+    logo_w = int(orig_w * scale)
+    logo_h = int(orig_h * scale)
+
+    # Center within the box
+    box_left = Inches(13.0)
+    box_top  = Inches(3.8)
+    left = box_left + (max_w - logo_w) // 2
+    top  = box_top  + (max_h - logo_h) // 2
+
+    prs = Presentation(pptx_path)
+    prs.slides[0].shapes.add_picture(png_path, left, top, logo_w, logo_h)
+    prs.save(pptx_path)
+
+    import os
+    os.unlink(png_path)
+
+
 def build_deck(
     company_name: str,
     deal_name: str,
@@ -156,13 +208,14 @@ def build_deck(
     am_name: str,
     agenda_variant: str = "maanav",  # "maanav" or "sephra"
     month_year: str = None,
+    logo_path: str = None,           # optional path to uploaded logo image
 ) -> str:
     """
     Generate the deck and return the output file path.
     """
     if not TEMPLATE_PATH.exists():
         raise FileNotFoundError(f"Template not found: {TEMPLATE_PATH}")
-    
+
     replacements = build_replacements(
         company_name=company_name,
         deal_name=deal_name,
@@ -172,12 +225,15 @@ def build_deck(
         am_name=am_name,
         month_year=month_year,
     )
-    
+
     safe_name = re.sub(r"[^\w\s-]", "", company_name).strip().replace(" ", "_")
     output_path = OUTPUT_DIR / f"{safe_name}_Integration_Call_Deck.pptx"
-    
+
     edit_pptx(TEMPLATE_PATH, output_path, replacements, agenda_variant)
-    
+
+    if logo_path:
+        insert_logo_on_slide1(str(output_path), logo_path)
+
     return str(output_path)
 
 

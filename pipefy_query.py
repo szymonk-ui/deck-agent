@@ -86,6 +86,40 @@ def get_cards_in_phase(phase_id):
     
     return phase["name"], result
 
+def get_card_by_id(card_id):
+    """Get a single card by its ID."""
+    q = """
+    query($card_id: ID!) {
+      card(id: $card_id) {
+        id
+        title
+        fields {
+          field { id label }
+          value
+        }
+      }
+    }
+    """
+    data = graphql(q, {"card_id": card_id})
+    card = data.get("data", {}).get("card")
+    if not card:
+        return None
+
+    fields_map = {}
+    for f in card["fields"]:
+        fields_map[f["field"]["id"]] = f["value"]
+
+    return {
+        "id": card["id"],
+        "title": card["title"],
+        "chain_name": fields_map.get("chain_name", card["title"]),
+        "primary_hq_alias": fields_map.get("primary_hq_alias", ""),
+        "secondary_hq_alias": fields_map.get("secondary_hq_alias", ""),
+        "poc_first_name": fields_map.get("poc_first_name", ""),
+        "poc_last_name": fields_map.get("poc_last_name", ""),
+    }
+
+
 if __name__ == "__main__":
     if "--get-phases" in sys.argv:
         phases = get_phases()
