@@ -96,9 +96,9 @@ def edit_pptx(template_path: Path, output_path: Path, replacements: dict, agenda
     #   slide10 = timeline, slide11 = help, slide12 = closing
     
     if agenda_variant == "maanav":
-        slide_to_remove = "slide3"  # remove Sephra's agenda slide
-    else:
         slide_to_remove = "slide2"  # remove Maanav's agenda slide
+    else:
+        slide_to_remove = "slide3"  # remove Sephra's agenda slide
     
     # Remove from sldIdLst in presentation.xml
     # The relationship r:id references like "rId3" correspond to slide3
