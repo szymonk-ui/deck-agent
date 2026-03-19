@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deck Generator — Superorder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0e0d0b;
+      --surface:   #161512;
+      --border:    #2a2722;
+      --border-hi: #3d3830;
+      --text:      #e8e0d0;
+      --muted:     #7a7268;
+      --accent:    #f07030;
+      --accent-lo: rgba(240,112,48,0.12);
+      --accent-glow: rgba(240,112,48,0.25);
+      --green:     #52c47a;
+      --red:       #e05050;
+      --radius:    6px;
+      --mono: 'DM Mono', monospace;
+      --sans: 'Syne', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ── Noise texture overlay ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.6;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 14px;
+      color: #0e0d0b;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text);
+      letter-spacing: 0.01em;
+    }
+
+    .header-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: auto;
+      font-style: italic;
+    }
+
+    /* ── Main layout ── */
+    main {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 48px 24px 80px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 560px;
+    }
+
+    /* ── Hero heading ── */
+    .hero {
+      margin-bottom: 40px;
+    }
+
+    .hero h1 {
+      font-family: var(--sans);
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1.15;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .hero h1 span {
+      color: var(--accent);
+    }
+
+    .hero p {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* ── Steps ── */
+    .step {
+      margin-bottom: 28px;
+      animation: fadeUp 0.4s ease both;
+    }
+    .step:nth-child(1) { animation-delay: 0.05s; }
+    .step:nth-child(2) { animation-delay: 0.1s; }
+    .step:nth-child(3) { animation-delay: 0.15s; }
+    .step:nth-child(4) { animation-delay: 0.2s; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .step-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1px solid var(--border-hi);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .step-title {
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ── Card select ── */
+    .card-select-wrapper {
+      position: relative;
+    }
+
+    select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 12px 40px 12px 14px;
+      appearance: none;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+    select:focus { border-color: var(--accent); }
+    select option { background: #1a1916; }
+
+    .select-arrow {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .card-meta {
+      margin-top: 8px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+      color: var(--muted);
+      display: none;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .card-meta.visible { display: flex; }
+    .card-meta span { white-space: nowrap; }
+    .card-meta strong { color: var(--text); }
+
+    /* ── Loading state for cards ── */
+    .loading-cards {
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--muted);
+      font-size: 13px;
+      font-style: italic;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .spinner {
+      width: 12px;
+      height: 12px;
+      border: 1.5px solid var(--border-hi);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── AM selector ── */
+    .am-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .am-option {
+      position: relative;
+    }
+
+    .am-option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+    }
+
+    .am-option label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .am-option input:checked + label {
+      border-color: var(--accent);
+      background: var(--accent-lo);
+    }
+
+    .am-option label:hover {
+      border-color: var(--border-hi);
+    }
+
+    .am-name {
+      font-family: var(--sans);
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .am-role {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* ── Logo upload ── */
+    .upload-zone {
+      border: 1.5px dashed var(--border-hi);
+      border-radius: var(--radius);
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+      background: var(--surface);
+    }
+
+    .upload-zone:hover,
+    .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-lo);
+    }
+
+    .upload-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .upload-icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .upload-text {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .upload-text strong {
+      color: var(--accent);
+    }
+
+    .upload-hint {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+      opacity: 0.7;
+    }
+
+    .upload-preview {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-top: 10px;
+    }
+    .upload-preview.visible { display: flex; }
+
+    .preview-thumb {
+      width: 48px;
+      height: 32px;
+      object-fit: contain;
+      border-radius: 3px;
+      background: #ffffff10;
+    }
+
+    .preview-name {
+      font-size: 12px;
+      color: var(--text);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .preview-remove {
+      font-size: 16px;
+      color: var(--muted);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0 4px;
+      line-height: 1;
+      transition: color 0.1s;
+    }
+    .preview-remove:hover { color: var(--red); }
+
+    /* ── Generate button ── */
+    .generate-btn {
+      width: 100%;
+      padding: 15px 24px;
+      background: var(--accent);
+      color: #0e0d0b;
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.03em;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s, box-shadow 0.2s;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .generate-btn:hover:not(:disabled) {
+      opacity: 0.9;
+      box-shadow: 0 0 24px var(--accent-glow);
+    }
+
+    .generate-btn:active:not(:disabled) {
+      transform: scale(0.99);
+    }
+
+    .generate-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ── Status message ── */
+    .status {
+      margin-top: 16px;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      display: none;
+      align-items: center;
+      gap: 10px;
+    }
+    .status.visible { display: flex; }
+    .status.generating {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .status.success {
+      background: rgba(82,196,122,0.1);
+      border: 1px solid rgba(82,196,122,0.3);
+      color: var(--green);
+    }
+    .status.error {
+      background: rgba(224,80,80,0.1);
+      border: 1px solid rgba(224,80,80,0.3);
+      color: var(--red);
+    }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 32px 0;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="logo-mark">S</div>
+    <span class="header-title">Deck Generator</span>
+    <span class="header-sub">Integration Call</span>
+  </header>
+
+  <main>
+    <div class="card">
+
+      <div class="hero">
+        <h1>Generate an<br /><span>Integration Deck</span></h1>
+        <p>Pull from Pipefy, pick the AM, drop the logo — download in seconds.</p>
+      </div>
+
+      <form id="deckForm">
+
+        <!-- Step 1: Chain -->
+        <div class="step">
+          <div class="step-label">
+            <div class="step-num">1</div>
+            <span class="step-title">Select Chain</span>
+          </div>
+
+          <div id="cardsLoading" class="loading-cards">
+            <div class="spinner"></div>
+            Fetching chains from Pipefy…
+          </div>
+
+          <div id="cardsLoaded" style="display:none;">
+            <div class="card-select-wrapper">
+              <select id="cardSelect" name="card_id" required>
+                <option value="">— Choose a chain —</option>
+              </select>
+              <span class="select-arrow">▾</span>
+            </div>
+            <div id="cardMeta" class="card-meta">
+              <span>PoC: <strong id="metaPoc">—</strong></span>
+              <span>HQ1: <strong id="metaHq1">—</strong></span>
+              <span>HQ2: <strong id="metaHq2">—</strong></span>
+            </div>
+          </div>
+
+          <div id="cardsError" style="display:none; color: var(--red); font-size:13px; margin-top:8px;"></div>
+        </div>
+
+        <!-- Step 2: AM -->
+        <div class="step">
+          <div class="step-label">
+            <div class="step-num">2</div>
+            <span class="step-title">Account Manager</span>
+          </div>
+          <div class="am-grid">
+            <div class="am-option">
+              <input type="radio" id="amMaanav" name="am" value="maanav" required />
+              <label for="amMaanav">
+                <span class="am-name">Maanav Patel</span>
+                <span class="am-role">Account Manager</span>
+              </label>
+            </div>
+            <div class="am-option">
+              <input type="radio" id="amSephra" name="am" value="sephra" />
+              <label for="amSephra">
+                <span class="am-name">Sephra Engel</span>
+                <span class="am-role">Account Manager</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Logo -->
+        <div class="step">
+          <div class="step-label">
+            <div class="step-num">3</div>
+            <span class="step-title">Chain Logo <span style="color:var(--muted);font-weight:400;text-transform:none;font-family:var(--mono);font-size:11px;">(optional)</span></span>
+          </div>
+
+          <div class="upload-zone" id="uploadZone">
+            <input type="file" id="logoInput" name="logo" accept="image/*" />
+            <span class="upload-icon">⬆</span>
+            <div class="upload-text"><strong>Click to upload</strong> or drag & drop</div>
+            <div class="upload-hint">PNG, JPG, WEBP — auto-converted to PNG for the slide</div>
+          </div>
+
+          <div class="upload-preview" id="uploadPreview">
+            <img class="preview-thumb" id="previewThumb" src="" alt="logo preview" />
+            <span class="preview-name" id="previewName"></span>
+            <button type="button" class="preview-remove" id="removeBtn" title="Remove">✕</button>
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <!-- Generate -->
+        <button type="submit" class="generate-btn" id="generateBtn" disabled>
+          <span id="btnText">↓ Generate Deck</span>
+        </button>
+
+        <div class="status generating" id="statusGenerating">
+          <div class="spinner"></div>
+          <span>Building your deck…</span>
+        </div>
+        <div class="status success" id="statusSuccess">
+          ✓ <span>Deck generated — download started!</span>
+        </div>
+        <div class="status error" id="statusError">
+          ✕ <span id="errorMsg">Something went wrong.</span>
+        </div>
+
+      </form>
+    </div>
+  </main>
+
+</div>
+
+<script>
+  // ── Data ─────────────────────────────────────────────────────────────────
+  let cards = [];
+
+  // ── Fetch cards from Pipefy ───────────────────────────────────────────────
+  async function loadCards() {
+    try {
+      const res = await fetch('/api/cards');
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      cards = data.cards;
+
+      const select = document.getElementById('cardSelect');
+      cards.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.chain_name;
+        select.appendChild(opt);
+      });
+
+      document.getElementById('cardsLoading').style.display = 'none';
+      document.getElementById('cardsLoaded').style.display = 'block';
+    } catch (err) {
+      document.getElementById('cardsLoading').style.display = 'none';
+      const errEl = document.getElementById('cardsError');
+      errEl.style.display = 'block';
+      errEl.textContent = '⚠ Could not load cards: ' + err.message;
+    }
+  }
+
+  // ── Card selection ────────────────────────────────────────────────────────
+  document.getElementById('cardSelect').addEventListener('change', function () {
+    const card = cards.find(c => c.id === this.value);
+    const meta = document.getElementById('cardMeta');
+    if (card) {
+      document.getElementById('metaPoc').textContent =
+        [card.poc_first_name, card.poc_last_name].filter(Boolean).join(' ') || '—';
+      document.getElementById('metaHq1').textContent = card.primary_hq_alias || '—';
+      document.getElementById('metaHq2').textContent = card.secondary_hq_alias || '—';
+      meta.classList.add('visible');
+    } else {
+      meta.classList.remove('visible');
+    }
+    updateBtn();
+  });
+
+  // ── AM selection ──────────────────────────────────────────────────────────
+  document.querySelectorAll('input[name="am"]').forEach(r =>
+    r.addEventListener('change', updateBtn)
+  );
+
+  function updateBtn() {
+    const cardOk = !!document.getElementById('cardSelect').value;
+    const amOk = !!document.querySelector('input[name="am"]:checked');
+    document.getElementById('generateBtn').disabled = !(cardOk && amOk);
+  }
+
+  // ── Logo upload ───────────────────────────────────────────────────────────
+  const uploadZone  = document.getElementById('uploadZone');
+  const logoInput   = document.getElementById('logoInput');
+  const preview     = document.getElementById('uploadPreview');
+  const previewThumb = document.getElementById('previewThumb');
+  const previewName  = document.getElementById('previewName');
+
+  logoInput.addEventListener('change', () => showPreview(logoInput.files[0]));
+
+  document.getElementById('removeBtn').addEventListener('click', () => {
+    logoInput.value = '';
+    preview.classList.remove('visible');
+    uploadZone.style.display = 'block';
+  });
+
+  uploadZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    uploadZone.classList.add('drag-over');
+  });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      logoInput.files = dt.files;
+      showPreview(file);
+    }
+  });
+
+  function showPreview(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewThumb.src = e.target.result;
+      previewName.textContent = file.name;
+      preview.classList.add('visible');
+      uploadZone.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ── Form submit ───────────────────────────────────────────────────────────
+  document.getElementById('deckForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    hideStatus();
+    document.getElementById('statusGenerating').classList.add('visible');
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('btnText').textContent = 'Generating…';
+
+    const formData = new FormData(this);
+
+    try {
+      const res = await fetch('/generate', { method: 'POST', body: formData });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(data.error || 'Unknown error');
+      }
+
+      // Trigger download
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const nameMatch = disposition.match(/filename="?([^"]+)"?/);
+      const filename = nameMatch ? nameMatch[1] : 'Integration_Call_Deck.pptx';
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      document.getElementById('statusGenerating').classList.remove('visible');
+      document.getElementById('statusSuccess').classList.add('visible');
+    } catch (err) {
+      document.getElementById('statusGenerating').classList.remove('visible');
+      document.getElementById('errorMsg').textContent = err.message;
+      document.getElementById('statusError').classList.add('visible');
+    } finally {
+      document.getElementById('generateBtn').disabled = false;
+      document.getElementById('btnText').textContent = '↓ Generate Deck';
+      updateBtn();
+    }
+  });
+
+  function hideStatus() {
+    ['statusGenerating','statusSuccess','statusError'].forEach(id =>
+      document.getElementById(id).classList.remove('visible')
+    );
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  loadCards();
+</script>
+</body>
+</html>
