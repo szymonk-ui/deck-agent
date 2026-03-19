@@ -164,39 +164,25 @@ def convert_to_png(src_path: str) -> str:
 
 
 def insert_logo_on_slide1(pptx_path: str, logo_path: str):
-    """
-    Insert the chain logo onto slide 1 (title slide).
-    Logo is placed to the right of the divider, scaled to fit a 3.8"×2.2" box.
-    """
-    from pptx import Presentation
-    from pptx.util import Inches
+    """Replace image12.png (the chain logo placeholder on slide 1) with the uploaded logo."""
+    import zipfile, os, tempfile
     from PIL import Image
 
-    png_path = convert_to_png(logo_path)
+    img = Image.open(logo_path).convert("RGBA")
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    img.save(tmp.name, "PNG")
+    tmp.close()
 
-    with Image.open(png_path) as img:
-        orig_w, orig_h = img.size
+    tmp_pptx = pptx_path + ".tmp"
+    with zipfile.ZipFile(pptx_path, "r") as zin, zipfile.ZipFile(tmp_pptx, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            if item.filename == "ppt/media/image12.png":
+                zout.write(tmp.name, item.filename)
+            else:
+                zout.writestr(item, zin.read(item.filename))
 
-    # Target bounding box: right side of slide, beside the 'X' divider (~11.2")
-    max_w = Inches(3.8)
-    max_h = Inches(2.2)
-
-    scale = min(max_w / orig_w, max_h / orig_h)
-    logo_w = int(orig_w * scale)
-    logo_h = int(orig_h * scale)
-
-    # Center within the box
-    box_left = Inches(13.0)
-    box_top  = Inches(3.8)
-    left = box_left + (max_w - logo_w) // 2
-    top  = box_top  + (max_h - logo_h) // 2
-
-    prs = Presentation(pptx_path)
-    prs.slides[0].shapes.add_picture(png_path, left, top, logo_w, logo_h)
-    prs.save(pptx_path)
-
-    import os
-    os.unlink(png_path)
+    os.replace(tmp_pptx, pptx_path)
+    os.unlink(tmp.name)
 
 
 def build_deck(
